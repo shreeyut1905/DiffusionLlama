@@ -104,4 +104,83 @@ Please output the categories following the format of TEMPLATE.
 Input : {input}
 """
 
-TREE_OF_MODEL_PROMPT_STYLE = """"""
+TREE_OF_MODEL_PROMPT_STYLE = """You are an information analyst who can analyze and summarize a set of words to abstract some representation categories.
+Below is a template that can represent the abstracted categories in Style Dimensions:
+TEMPLATE:
+```
+Categories:
+-[Style]
+-[Style]
+-...
+```
+You MUST abstract the categories in a highly abstract manner from only style dimension and ensure the whole number of categories are fewer than 8.
+Please output the Categories following the format of the TEMPLATE.
+
+Input:{input}
+"""
+TREE_OF_MODEL_PROMPT_ = """You are an information analyst who can create a Knowledge Tree according to the input categories.
+Below is a knowledge Tree Template:
+TEMPLATE:
+```
+Knowledge Tree:
+-[Subject]
+    -[Style]
+    - ...
+-[Subject]
+    -...
+```
+You MUST place the each style category as subcategory under the subject categories based on whether it can be well matched with a specific subject category to form a reasonable scene.
+Please output the categories following the format of TEMPLATE.
+Subject Input:{subject}
+Style Input:{style}
+"""
+TREE_OF_MODEL_PROMPT_ADD_MODELS = """You are an information analyst who can add some input models to an input knowledge tree according to similarity of the model tags and the categories of the knowledge tree.
+You need to place each input model into the appropriate subcategory on the tree,one by one.
+You must  keep the original content of the knowledge tree.
+Please output the final knowledge tree.
+knowledge Tree Input:{tree}
+Models Input:{models}
+Model Tags Input:{model_tags}
+"""
+os.makedirs('image',exist_ok=True)
+
+from langchain.llms.base import LLM
+
+from langchain import PromptTemplate, HuggingFaceHub
+from langchain.llms import HuggingFacePipeline
+
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    return seed 
+
+def prompts(name,description):
+    def decorator(func):
+        func.name = name
+        func.description = description
+        return func
+    return decorator
+def cut_dialogue_history(history_memory,keep_last_n_words=500):
+    if history_memory is None or len(history_memory)==0:
+        return history_memory
+    tokens = history_memory.split()
+    n_tokens = len(tokens)
+
+    if n_tokens < keep_last_n_words:
+        return history_memory 
+    paragraphs = history_memory.split('\n')
+    last_n_tokens = n_tokens
+    while last_n_tokens  >= keep_last_n_words:
+        last_n_tokens -= len(paragraphs[0].split(' '))
+        paragraphs = paragraphs[1:]
+    return '\n' + '\n'.join(paragraphs)
+
+class Text2Image:
+    def __init__(self,device):
+class CoversationBot:
+    def __init__(self,load_dict):
+        return 
