@@ -27,7 +27,9 @@ from langchain_groq import ChatGroq
 
 from sentence_transformers import SentenceTransformer
 from compel  import Compel,ReturnedEmbeddingsType
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 PREFIX = """DIffusionLlama is designed to be able to assist user in generating high-quality images. 
 Human may provide some text prompts to DIffusionLlama.The input prompts will be analyzed by DIffusionLlama to select most suitable generative models for generating images.
 Overall,DIffusionLlama is powerful image generation system that can assist  in procesing various forms of textual input and match them  with the most suitable  generative model to accomplish the generation task.
@@ -181,6 +183,57 @@ def cut_dialogue_history(history_memory,keep_last_n_words=500):
 
 class Text2Image:
     def __init__(self,device):
+        print("Initialising Text2Img to {device}")
+        self.device = device 
+        self.torch_dtype = torch.float16 if 'cuda' in device else torch.float32
+        self.llm = ChatGroq(model = "llama-3.3-70b-versatile",temperature=0,groq_api_key=os.getenv("GROQ_API_KEY"))
+        if not os.path.exists('model_tree_tot_sdxl.json'):
+            with open('model_data_sdxl.json','r') as f:
+                self.model_data_all = json.load(f)
+            model_tags = {model["model_name"]:model["tag"] for model in self.model_data_all}
+            model_tree = self.build_tree(model_tags)
+            model_all_data = {model["model_name"].split(".")[0]:model for model in self.model_data_all}
+            save_model_tree = {}
+            for cate_name,sub_category in model_tree.items():
+                cate_name = cate_name.lower()
+                temp_category  = {}
+
+                if "Universal" not in sub_category:
+                    temp_category["Universal"] = [model_all_data['kandinsky'],model_all_data["sd_xl"]]
+                for sec_cate_name,sub_sub_cates in sub_category.items():
+                    sec_cate_name = sec_cate_name.lower()
+                    temp_model_list = []
+
+                    for model_name in sub_sub_cates:
+                        model_name = model_name.strip()
+                        lower_name = model_name[0].lower() + model_name[1:]
+                        if model_name in model_all_data:
+                            temp_model_list.append(model_all_data[model_name])
+                        elif lower_name in model_all_data:
+                            temp_model_list.append(model_all_data[lower_name])
+                    temp_category[sec_cate_name] = temp_model_list
+                save_model_tree[cate_name] =  temp_category
+            json_data = json.dumps(save_model_tree,indent=2)
+            with open('model_tree_tot_sdxl.json','w') as f:
+                f.write(json_data)
+                f.close()
+        with open('model_tree_tot_sdxl.json','r') as f:
+            self.model_all_data = json.load(f)
+            self.model_all_data = {model["model_name"]:model for model in self.model_all_data}
+        with open('./VectorDB_HF/prompt_embed_st.pickle', 'rb') as f:
+            self.pt_pairs = pickle.load(f)
+        with open('./VectorDB_HF/prompt2scores_sdxl.json', 'r') as f:
+            self.prompt2scores = json.load(f)
+        self.st_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    def build_tree(self,model_tags):
+        tags_only = list(model_tags.values())
+        model_names = list(model_tags.keys())
+        prompts = TREE_OF_MODEL_PROMPT.format(input=tags_only)
+        
+                
+
+
+         
 class CoversationBot:
     def __init__(self,load_dict):
         return 
