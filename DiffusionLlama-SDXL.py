@@ -229,8 +229,77 @@ class Text2Image:
         tags_only = list(model_tags.values())
         model_names = list(model_tags.keys())
         prompts = TREE_OF_MODEL_PROMPT.format(input=tags_only)
-        
-                
+        prompt1 = TREE_OF_MODEL_PROMPT_SUBJECT.format(input=tags_only)
+        response1 = self.llm(prompt1)
+        prompt2= TREE_OF_MODEL_PROMPT_STYLE.format(input=tags_only)
+        response2 = self.llm(prompt2)
+
+        prompt_tree = TREE_OF_MODEL_PROMPT_.format(input=tags_only)
+        response = self.llm(prompt_tree)
+        tree = response.split("Knowledge Tree:")[1]
+        model_name = [name.split(".")[0] for name in list(model_tags.keys())]
+        prompts = TREE_OF_MODEL_PROMPT_ADD_MODELS.format(model_tags=model_tags, tree=tree, models=model_names)
+        tree = self.llm(prompts)
+        output = {}
+        tree_list = tree.split("\n")
+        for category in tree_list:
+            if category == '':
+                continue
+            if category.startswith("- "):
+                current_key = category[2:]
+                output[current_key] = {}
+            elif category.startswith("  - "):
+                next_key = category[:4]
+                output[current_key][next_key] = []
+            elif category.startswith("    - "):
+                output[current_key][next_key].append(category[6:])
+        return output
+    def prompt_parse(self,inputs):
+        prompts = PROMPT_PARSE_PROMPTS.format(inputs=inputs)
+        output = self.llm(prompts)
+        output = output.split("Prompts:")[1]
+        return output.strip()
+    def get_property(self,model_data):
+        properties = []
+        for model in model_data:
+            name = "model_name:" + model["model_name"] +  ", "
+            tag = "tag:" + ",".join(model["tag"])
+            prop = name + tag + "\n\n"
+            properties.append(prop)
+        return properties
+
+    def search_one_matched(self,inputs,search_list):
+        tot_prompts = TOT_PROMPTS.format(search_list = search_list,input=inputs)
+        model_name = self.llm(tot_prompts)
+        print(model_name)
+        if "Selected:" in model_name:
+            model_name = model_name.split("Selected:")[-1]
+        for ch in [",",";","."]:
+            if ch in model_name:
+                model_name = model_name.split(ch)[0]
+        model_name = model_name.strip().lower()
+        return model_name
+    def select_best_model_with_HF(self,inputs,model_space):
+        text_embed = torch.Tensor(self.st_model.encode([inputs]))
+        text_embed /= text_embed.norm(dim=1,keepdim=True)
+        similarity = text_embed @ self.pt_pairs['text_embeds'].T
+        topk_idxs = similarity.topk(5).indices[0,:]
+        topk_model_list = []
+        model_names_of_tree = [model["model_name"].split(".")[0] for model in model_space]
+        for idx,p in enumerate(topk_idxs):
+            save_prompts_name = self.pt_pairs['prompts'][int(p)][:100].replace('\n','')
+            model_score = self.prompt2score[save_prompt_name]
+            model_names = list(model_scores.keys())
+            reward_scores =[]
+            for name,value in model_score.items():
+                reward_scores.append(values["image_reward"])
+            rewarded_scores = torch.Tensor(reward_scores)
+            topk_model_idx = reward_scores.topk(5).indices.tolist()
+            topk_models = [model_names[i] for i in topk_model_idx]
+            topk_model_list.append(topk_models)
+            
+
+
 
 
          
